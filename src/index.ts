@@ -1,4 +1,4 @@
-import {parseFileDataForEmails} from "./utils/file.util";
+import {parseFileDataForEmailBatches} from "./utils/file.util";
 import {DatabaseSearchResponse} from "./types/response.types";
 import axios from "axios"
 import "dotenv/config"
@@ -17,16 +17,6 @@ let activeLineWriteCount = 0;
 const lineWriteQueue = new Denque<string>();
 
 const foundNumbers = new Set<string>();
-
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-
-  return chunks;
-}
 
 function processBatchSearchQueue(maxConcurrent: number) {
   while (activeBatchSearchCount < maxConcurrent && batchSearchQueue.length > 0) {
@@ -95,12 +85,14 @@ async function getBatchData(emailBatch: string[]) {
 }
 
 async function main() {
-  const uniqueEmails = await parseFileDataForEmails("./emails.txt");
-  const chunks = chunkArray(Array.from(uniqueEmails), config.batchSize);
-  for (const chunk of chunks) {
-    batchSearchQueue.push(() => getBatchData(chunk));
-    processBatchSearchQueue(config.concurrentBatches);
-  }
+  await parseFileDataForEmailBatches(
+    "./emails.txt",
+    config.batchSize,
+    (batch) => {
+      batchSearchQueue.push(() => getBatchData(batch));
+      processBatchSearchQueue(config.concurrentBatches);
+    }
+  );
 }
 
 main().then();

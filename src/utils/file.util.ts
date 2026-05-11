@@ -2,10 +2,9 @@ import fs from "fs";
 import readline from "readline";
 import {findEmailsInLine} from "./parse.util";
 
-
-
-export async function parseFileDataForEmails(filePath: string): Promise<Set<string>> {
-  const results = new Set<string>();
+export async function parseFileDataForEmailBatches(filePath: string, batchSize: number, onBatch: (batch: string[]) => void): Promise<void> {
+  const seenEmails = new Set<string>();
+  let batch: string[] = [];
 
   const fileStream = fs.createReadStream(filePath, {
     encoding: "utf-8",
@@ -23,9 +22,23 @@ export async function parseFileDataForEmails(filePath: string): Promise<Set<stri
     }
 
     for (const email of emails) {
-      results.add(email.toLowerCase());
+      const normalizedEmail = email.toLowerCase();
+
+      if (seenEmails.has(normalizedEmail)) {
+        continue;
+      }
+
+      seenEmails.add(normalizedEmail);
+      batch.push(normalizedEmail);
+
+      if (batch.length >= batchSize) {
+        onBatch(batch);
+        batch = [];
+      }
     }
   }
 
-  return results;
+  if (batch.length > 0) {
+    onBatch(batch);
+  }
 }

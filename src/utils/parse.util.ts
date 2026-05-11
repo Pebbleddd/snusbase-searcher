@@ -23,10 +23,15 @@ export function parsePhoneNumber(phoneNumber: string): string | null {
 // Mandatory fields inorder to be written
 export function validateAndParseEntry(databaseEntry: BreachRecord): BreachRecord | null {
   if (!databaseEntry.phone) return null;
+
   const parsedPhoneNumber = parsePhoneNumber(databaseEntry.phone);
   if (!parsedPhoneNumber) return null;
+
   databaseEntry.phone = parsedPhoneNumber;
-  if (!databaseEntry.name) return null;
+
+  if (!databaseEntry.name?.trim()) return null;
+
+  databaseEntry.name = databaseEntry.name.trim();
 
   return databaseEntry;
 }
@@ -35,8 +40,26 @@ export function buildLine(databaseEntry: BreachRecord): string {
   let line = `${databaseEntry.name!.toLowerCase()} | ${databaseEntry.email.toLowerCase()} | ${databaseEntry.phone}`;
 
   //optional fields
-  if (databaseEntry.address) {
-    line += ` | ${databaseEntry.address.toLowerCase()}`
+  if (looksLikeLocation(databaseEntry.address)) {
+    line += ` | ${databaseEntry.address!.toLowerCase()}`
   }
   return line;
+}
+
+function looksLikeLocation(input: string | undefined): boolean {
+  if (!input) return false;
+
+  const value = input.trim();
+
+  if (value.length < 2) return false;
+
+  if (/^[^a-zA-Z0-9]+$/.test(value)) return false;
+
+  if (/\d/.test(value) && /[,\n]/.test(value)) return true;
+
+  if (/^[A-Za-z .'-]+,\s*[A-Za-z .'-]{2,}$/.test(value)) return true;
+
+  if (/^[A-Z]{2}$/.test(value)) return true;
+
+  return /^[A-Za-z .'-]{3,}$/.test(value);
 }
