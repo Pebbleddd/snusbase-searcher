@@ -7,6 +7,7 @@ import {Config} from "./types/config.types";
 import Denque from "denque";
 import {buildLine, validateAndParseEntry} from "./utils/parse.util";
 import {appendFile} from "node:fs/promises";
+import {sleep} from "./utils/time.util";
 
 const config: Config = ConfigService.getInstance().getConfig();
 
@@ -59,10 +60,11 @@ async function processLineWriteQueue() {
 }
 
 async function getBatchData(emailBatch: emailBatch) {
+  if (config.chunkDelaySeconds > 0) await sleep(config.chunkDelaySeconds * 1000);
   let data: DatabaseSearchResponse | undefined;
   try {
     ({data} = await axios.post<DatabaseSearchResponse>("https://api.snusbase.com/data/search", {
-      terms: emailBatch.batch, types: config.types,
+      terms: emailBatch.batch, types: config.types, wildcard: config.wildcard
     }, {
       headers: {
         "Content-Type": "application/json", Auth: config.apiKey,
