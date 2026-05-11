@@ -6,6 +6,7 @@ export async function parseFileDataForEmailBatches(filePath: string, batchSize: 
   const seenEmails = new Set<string>();
   let batch: string[] = [];
 
+
   const fileStream = fs.createReadStream(filePath, {
     encoding: "utf-8",
   });

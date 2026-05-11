@@ -10,6 +10,10 @@ import {appendFile} from "node:fs/promises";
 
 const config: Config = ConfigService.getInstance().getConfig();
 
+type emailBatch = {
+  batch: string[]; retryCount: number;
+};
+
 let activeBatchSearchCount = 0;
 const batchSearchQueue = new Denque<() => Promise<void>>();
 
@@ -54,14 +58,25 @@ async function processLineWriteQueue() {
   }
 }
 
-async function getBatchData(emailBatch: string[]) {
-  const {data} = await axios.post<DatabaseSearchResponse>("https://api.snusbase.com/data/search", {
-    terms: emailBatch, types: config.types,
-  }, {
-    headers: {
-      "Content-Type": "application/json", "Auth": config.apiKey
-    },
-  })
+async function getBatchData(emailBatch: emailBatch) {
+  let data: DatabaseSearchResponse | undefined;
+  try {
+    ({data} = await axios.post<DatabaseSearchResponse>("https://api.snusbase.com/data/search", {
+      terms: emailBatch.batch, types: config.types,
+    }, {
+      headers: {
+        "Content-Type": "application/json", Auth: config.apiKey,
+      }, timeout: config.requestTimeoutSeconds * 1000,
+    }));
+  } catch (error) {
+    console.error(`Request failed due to ${error}`);
+    if (emailBatch.retryCount < config.attemptCount) {
+      emailBatch.retryCount++;
+      console.log(`Retrying batch, attempt #${emailBatch.retryCount}`)
+      batchSearchQueue.push(() => getBatchData(emailBatch));
+    }
+    return;
+  }
 
   if (!data) {
     throw new Error("Error obtaining data from /search")
@@ -85,14 +100,10 @@ async function getBatchData(emailBatch: string[]) {
 }
 
 async function main() {
-  await parseFileDataForEmailBatches(
-    "./emails.txt",
-    config.batchSize,
-    (batch) => {
-      batchSearchQueue.push(() => getBatchData(batch));
-      processBatchSearchQueue(config.concurrentBatches);
-    }
-  );
+  await parseFileDataForEmailBatches("./emails.txt", config.batchSize, (batch) => {
+    batchSearchQueue.push(() => getBatchData({batch, retryCount: 1}));
+    processBatchSearchQueue(config.concurrentBatches);
+  });
 }
 
 main().then();
