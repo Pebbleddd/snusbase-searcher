@@ -1,6 +1,6 @@
 import {parseFileDataForEmailBatches} from "./utils/file.util";
 import {DatabaseSearchResponse} from "./types/response.types";
-import axios from "axios"
+import axios, {AxiosRequestConfig} from "axios"
 import "dotenv/config"
 import {ConfigService} from "./config/ConfigService";
 import {Config} from "./types/config.types";
@@ -8,12 +8,16 @@ import Denque from "denque";
 import {buildLine, validateAndParseEntry} from "./utils/parse.util";
 import {appendFile} from "node:fs/promises";
 import {sleep} from "./utils/time.util";
+import {getRandomProxy, parseProxyFile, toAxiosProxy} from "./utils/proxy.util";
+import {ProxyEntry} from "./types/proxy.types";
 
 const config: Config = ConfigService.getInstance().getConfig();
 
 type emailBatch = {
   batch: string[]; retryCount: number;
 };
+
+let proxies: ProxyEntry[] = [];
 
 let activeBatchSearchCount = 0;
 const batchSearchQueue = new Denque<() => Promise<void>>();
@@ -60,23 +64,49 @@ async function processLineWriteQueue() {
   }
 }
 
+function buildAxiosConfig(): AxiosRequestConfig {
+  const requestConfig: AxiosRequestConfig = {
+    headers: {
+      "Content-Type": "application/json",
+      Auth: config.apiKey,
+    },
+    timeout: config.requestTimeoutSeconds * 1000,
+  };
+
+  const proxy = config.useProxies ? getRandomProxy(proxies) : null;
+
+  if (proxy) {
+    requestConfig.proxy = toAxiosProxy(proxy);
+  } else {
+    requestConfig.proxy = false;
+  }
+
+  return requestConfig;
+}
+
 async function getBatchData(emailBatch: emailBatch) {
   let data: DatabaseSearchResponse | undefined;
+
   try {
-    ({data} = await axios.post<DatabaseSearchResponse>("https://api.snusbase.com/data/search", {
-      terms: emailBatch.batch, types: config.types, wildcard: config.wildcard
-    }, {
-      headers: {
-        "Content-Type": "application/json", Auth: config.apiKey,
-      }, timeout: config.requestTimeoutSeconds * 1000,
-    }));
+    ({ data } = await axios.post<DatabaseSearchResponse>(
+      "https://api.snusbase.com/data/search",
+      {
+        terms: emailBatch.batch,
+        types: config.types,
+        wildcard: config.wildcard,
+      },
+      buildAxiosConfig()
+    ));
   } catch (error) {
     console.error(`Request failed due to ${error}`);
+
     if (emailBatch.retryCount < config.attemptCount) {
       emailBatch.retryCount++;
-      console.log(`Retrying batch, attempt #${emailBatch.retryCount}`)
+      console.log(`Retrying batch, attempt #${emailBatch.retryCount}`);
       batchSearchQueue.push(() => getBatchData(emailBatch));
+      processBatchSearchQueue(config.concurrentBatches);
     }
+
     return;
   }
 
@@ -114,6 +144,9 @@ async function waitForCompletion(): Promise<void> {
 }
 
 async function main() {
+  proxies = config.useProxies
+    ? await parseProxyFile("./proxies.txt")
+    : [];
   await parseFileDataForEmailBatches("./emails.txt", config.batchSize, async (batch) => {
     if (config.chunkDelaySeconds > 0) await sleep(config.chunkDelaySeconds * 1000);
     batchSearchQueue.push(() => getBatchData({batch, retryCount: 1}));

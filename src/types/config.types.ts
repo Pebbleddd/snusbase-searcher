@@ -1,5 +1,6 @@
 export interface Config {
   apiKey?: string;
+  useProxies: boolean;
   concurrentBatches: number;
   batchSize: number;
   attemptCount: number;
