@@ -1,0 +1,42 @@
+import parsePhoneNumberFromString, {CountryCode} from "libphonenumber-js";
+import {ConfigService} from "../config/ConfigService";
+import {Config} from "../types/config.types";
+import {BreachRecord} from "../types/response.types";
+
+
+const emailRegex = new RegExp("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "g");
+
+export function findEmailsInLine(line: string): RegExpMatchArray | [] {
+  return line.match(emailRegex) ?? [];
+}
+
+export function parsePhoneNumber(phoneNumber: string): string | null {
+  try {
+    const config: Config = ConfigService.getInstance().getConfig();
+    const parsed = parsePhoneNumberFromString(phoneNumber.trim(), config.defaultISOCountryCode as CountryCode);
+    if (!parsed || !parsed.isValid()) return null;
+    return parsed.number; // E.164 form, e.g. "+14155551234"
+  } catch {
+    return null;
+  }
+}
+// Mandatory fields inorder to be written
+export function validateAndParseEntry(databaseEntry: BreachRecord): BreachRecord | null {
+  if (!databaseEntry.phone) return null;
+  const parsedPhoneNumber = parsePhoneNumber(databaseEntry.phone);
+  if (!parsedPhoneNumber) return null;
+  databaseEntry.phone = parsedPhoneNumber;
+  if (!databaseEntry.name) return null;
+
+  return databaseEntry;
+}
+
+export function buildLine(databaseEntry: BreachRecord): string {
+  let line = `${databaseEntry.name!.toLowerCase()} | ${databaseEntry.email.toLowerCase()} | ${databaseEntry.phone}`;
+
+  //optional fields
+  if (databaseEntry.address) {
+    line += ` | ${databaseEntry.address.toLowerCase()}`
+  }
+  return line;
+}

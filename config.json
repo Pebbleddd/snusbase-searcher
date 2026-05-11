@@ -1,8 +1,10 @@
 {
-  "threadCount": 5,
+  "concurrentBatches": 5,
   "batchSize": 100,
   "attemptCount": 3,
   "chunkDelaySeconds": 3,
   "requestTimeoutSeconds": 15,
-  "wildcard": false
+  "wildcard": false,
+  "types": ["email"],
+  "defaultISOCountryCode": "US"
 }

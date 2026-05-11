@@ -1,9 +1,11 @@
 export interface Config {
-  apiKey?: string,
-  threadCount: number
-  batchSize: number,
-  attemptCount: number,
-  chunkDelaySeconds: number,
-  requestTimeoutSeconds: number,
-  wildcard: boolean
+  apiKey?: string;
+  concurrentBatches: number;
+  batchSize: number;
+  attemptCount: number;
+  chunkDelaySeconds: number;
+  requestTimeoutSeconds: number;
+  wildcard: boolean;
+  types: string[];
+  defaultISOCountryCode: string;
 }

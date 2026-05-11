@@ -1,7 +1,8 @@
 import fs from "fs";
 import readline from "readline";
+import {findEmailsInLine} from "./parse.util";
 
-const emailRegex = new RegExp("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "g");
+
 
 export async function parseFileDataForEmails(filePath: string): Promise<Set<string>> {
   const results = new Set<string>();
@@ -16,7 +17,10 @@ export async function parseFileDataForEmails(filePath: string): Promise<Set<stri
   });
 
   for await (const line of rl) {
-    const emails = line.match(emailRegex) ?? [];
+    const emails =  findEmailsInLine(line);
+    if (emails.length === 0) {
+      continue;
+    }
 
     for (const email of emails) {
       results.add(email.toLowerCase());

@@ -13,7 +13,9 @@
   "description": "Takes a set of email's and searches for them on the Snusbase database.",
   "dependencies": {
     "axios": "^1.16.0",
+    "denque": "^2.1.0",
     "dotenv": "^17.4.2",
+    "libphonenumber-js": "^1.13.1",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3"
   },
