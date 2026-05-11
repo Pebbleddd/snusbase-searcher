@@ -29,9 +29,9 @@ export function validateAndParseEntry(databaseEntry: BreachRecord): BreachRecord
 
   databaseEntry.phone = parsedPhoneNumber;
 
-  if (!databaseEntry.name?.trim()) return null;
+  if (!isValidName(databaseEntry.name)) return null;
 
-  databaseEntry.name = databaseEntry.name.trim();
+  databaseEntry.name = databaseEntry.name!.trim();
 
   return databaseEntry;
 }
@@ -44,6 +44,24 @@ export function buildLine(databaseEntry: BreachRecord): string {
     line += ` | ${databaseEntry.address!.toLowerCase()}`
   }
   return line;
+}
+
+function isValidName(name: string | undefined): boolean {
+  if (!name?.trim()) {
+    return false;
+  }
+
+  const trimmed = name.trim();
+
+  // must contain at least one letter
+  if (!/[a-z]/i.test(trimmed)) {
+    return false;
+  }
+
+  // reject if mostly digits
+  const digitCount = (trimmed.match(/\d/g) ?? []).length;
+
+  return digitCount <= trimmed.length / 2;
 }
 
 function looksLikeLocation(input: string | undefined): boolean {
