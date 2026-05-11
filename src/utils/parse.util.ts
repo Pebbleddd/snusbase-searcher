@@ -1,7 +1,7 @@
 import parsePhoneNumberFromString, {CountryCode} from "libphonenumber-js";
 import {ConfigService} from "../config/ConfigService";
 import {Config} from "../types/config.types";
-import {BreachRecord} from "../types/response.types";
+import {BreachRecord, ValidatedBreachRecord} from "../types/response.types";
 
 
 const emailRegex = new RegExp("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "g");
@@ -21,32 +21,34 @@ export function parsePhoneNumber(phoneNumber: string): string | null {
   }
 }
 // Mandatory fields inorder to be written
-export function validateAndParseEntry(databaseEntry: BreachRecord): BreachRecord | null {
+export function validateAndParseEntry(databaseEntry: BreachRecord): ValidatedBreachRecord | null {
   if (!databaseEntry.phone) return null;
 
   const parsedPhoneNumber = parsePhoneNumber(databaseEntry.phone);
   if (!parsedPhoneNumber) return null;
 
-  databaseEntry.phone = parsedPhoneNumber;
-
   if (!isValidName(databaseEntry.name)) return null;
 
-  databaseEntry.name = databaseEntry.name!.trim();
+  const trimmed = databaseEntry.name.trim();
 
-  return databaseEntry;
+  return {
+    ...databaseEntry,
+    name: trimmed,
+    phone: parsedPhoneNumber
+  };
 }
 
-export function buildLine(databaseEntry: BreachRecord): string {
-  let line = `${databaseEntry.name!.toLowerCase()} | ${databaseEntry.email.toLowerCase()} | ${databaseEntry.phone}`;
+export function buildLine(databaseEntry: ValidatedBreachRecord): string {
+  let line = `${databaseEntry.name.toLowerCase()} | ${databaseEntry.email.toLowerCase()} | ${databaseEntry.phone}`;
 
   //optional fields
   if (looksLikeLocation(databaseEntry.address)) {
-    line += ` | ${databaseEntry.address!.toLowerCase()}`
+    line += ` | ${databaseEntry.address.toLowerCase()}`
   }
   return line;
 }
 
-function isValidName(name: string | undefined): boolean {
+function isValidName(name: string | undefined): name is string {
   if (!name?.trim()) {
     return false;
   }
@@ -64,7 +66,7 @@ function isValidName(name: string | undefined): boolean {
   return digitCount <= trimmed.length / 2;
 }
 
-function looksLikeLocation(input: string | undefined): boolean {
+function looksLikeLocation(input: string | undefined): input is string {
   if (!input) return false;
 
   const value = input.trim();
