@@ -2,7 +2,7 @@ import fs from "fs";
 import readline from "readline";
 import {findEmailsInLine} from "./parse.util";
 
-export async function parseFileDataForEmailBatches(filePath: string, batchSize: number, onBatch: (batch: string[]) => void): Promise<void> {
+export async function parseFileDataForEmailBatches(filePath: string, batchSize: number, onBatch: (batch: string[]) => Promise<void>): Promise<void> {
   const seenEmails = new Set<string>();
   let batch: string[] = [];
 
@@ -33,13 +33,13 @@ export async function parseFileDataForEmailBatches(filePath: string, batchSize: 
       batch.push(normalizedEmail);
 
       if (batch.length >= batchSize) {
-        onBatch(batch);
+        await onBatch(batch);
         batch = [];
       }
     }
   }
 
   if (batch.length > 0) {
-    onBatch(batch);
+    await onBatch(batch);
   }
 }

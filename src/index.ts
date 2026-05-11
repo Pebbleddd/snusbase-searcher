@@ -23,6 +23,8 @@ const lineWriteQueue = new Denque<string>();
 
 const foundNumbers = new Set<string>();
 
+let batchCompleteCount = 0;
+
 function processBatchSearchQueue(maxConcurrent: number) {
   while (activeBatchSearchCount < maxConcurrent && batchSearchQueue.length > 0) {
     const job = batchSearchQueue.shift();
@@ -49,7 +51,6 @@ async function processLineWriteQueue() {
       const line = lineWriteQueue.shift();
       if (!line) continue;
 
-      console.log(line);
       await appendFile("output.txt", line + "\n");
     }
   } catch (err) {
@@ -60,7 +61,6 @@ async function processLineWriteQueue() {
 }
 
 async function getBatchData(emailBatch: emailBatch) {
-  if (config.chunkDelaySeconds > 0) await sleep(config.chunkDelaySeconds * 1000);
   let data: DatabaseSearchResponse | undefined;
   try {
     ({data} = await axios.post<DatabaseSearchResponse>("https://api.snusbase.com/data/search", {
@@ -94,18 +94,32 @@ async function getBatchData(emailBatch: emailBatch) {
       if (foundNumbers.has(line)) continue;  // checks if this line has already been written
 
       foundNumbers.add(line);
-
       lineWriteQueue.push(line);
       processLineWriteQueue().then();
     }
   }
+  batchCompleteCount++;
+  console.log(`Batch #${batchCompleteCount} Complete`);
+}
+
+async function waitForCompletion(): Promise<void> {
+  while (
+    batchSearchQueue.length > 0 ||
+    activeBatchSearchCount > 0 ||
+    lineWriteQueue.length > 0 ||
+    activeLineWriteCount > 0
+    ) {
+    await sleep(100);
+  }
 }
 
 async function main() {
-  await parseFileDataForEmailBatches("./emails.txt", config.batchSize, (batch) => {
+  await parseFileDataForEmailBatches("./emails.txt", config.batchSize, async (batch) => {
+    if (config.chunkDelaySeconds > 0) await sleep(config.chunkDelaySeconds * 1000);
     batchSearchQueue.push(() => getBatchData({batch, retryCount: 1}));
     processBatchSearchQueue(config.concurrentBatches);
   });
+  await waitForCompletion();
 }
 
-main().then();
+main().then(() => console.log(`Finished ${batchCompleteCount} Batches complete`));
