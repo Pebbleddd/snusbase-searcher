@@ -3,14 +3,19 @@ import {ConfigService} from "../config/ConfigService";
 import {Config} from "../types/config.types";
 import {BreachRecord, ValidatedBreachRecord} from "../types/response.types";
 
-
 const emailRegex = new RegExp("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "g");
 
 export function findEmailsInLine(line: string): RegExpMatchArray | [] {
   return line.match(emailRegex) ?? [];
 }
 
-export function parsePhoneNumber(phoneNumber: string): string | null {
+/**
+ * Validates a phone number and normalizes the format in E.164 form, e.g. "+14155551234"
+ *
+ * @params phoneNumber
+ * @returns E.164 formatted phone number, or null if the phone number could not be parsed
+ */
+function parsePhoneNumber(phoneNumber: string): string | null {
   try {
     const config: Config = ConfigService.getInstance().getConfig();
     const parsed = parsePhoneNumberFromString(phoneNumber.trim(), config.defaultISOCountryCode as CountryCode);
@@ -20,7 +25,17 @@ export function parsePhoneNumber(phoneNumber: string): string | null {
     return null;
   }
 }
-// Mandatory fields inorder to be written
+
+/**
+ * Validates a raw breach record and normalizes its fields. Returns null if
+ * the record is missing required fields (phone, name) or has an unparseable
+ * phone number.
+ *
+ * Phone numbers are returned in E.164 format. Names are trimmed.
+ *
+ * @param databaseEntry  Raw record from Snusbase /search response.
+ * @returns A new ValidatedBreachRecord, or null if the record was rejected.
+ */
 export function validateAndParseEntry(databaseEntry: BreachRecord): ValidatedBreachRecord | null {
   if (!databaseEntry.phone) return null;
 

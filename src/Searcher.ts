@@ -118,7 +118,7 @@ export class Searcher {
 
         const line = buildLine(validatedDatabaseEntry);
 
-        if (this.writtenLines.has(line)) continue;  // checks if this line has already been written
+        if (this.writtenLines.has(line)) continue;
 
         this.writtenLines.add(line);
         this.lineWriteQueue.push(line);

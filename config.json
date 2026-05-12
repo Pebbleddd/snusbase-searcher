@@ -4,7 +4,7 @@
   "concurrentBatches": 5,
   "batchSize": 100,
   "attemptCount": 3,
-  "chunkDelaySeconds": 3,
+  "chunkDelaySeconds": 0.5,
   "requestTimeoutSeconds": 15,
   "wildcard": false,
   "types": ["email"],
